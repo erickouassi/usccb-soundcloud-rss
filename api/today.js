@@ -21,74 +21,50 @@ export default async function handler(req, res) {
       }
     });
 
-    // 1. FETCH RSS
+    // 1. FETCH USCCB FEED
     const feed = await parser.parseURL(
-      "https://feeds.soundcloud.com/users/soundcloud:users:838970026/sounds.rss"
+      "https://feeds.feedburner.com/usccb/zhqs"
     );
 
-    // 2. TODAY'S DATE (formatted like "December 25, 2025")
+    // 2. TODAY (UTC-normalized)
     const today = new Date();
-    const todayString = today.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric"
-    });
+    const todayString = today.toDateString();
 
-    // 3. Extract date from text like:
-    // "Daily Mass Reading Podcast for December 25, 2025 - vigil"
-    function extractDate(text) {
-      const match = text.match(/for ([A-Za-z]+ \d{1,2}, \d{4})/);
-      return match ? match[1] : null;
-    }
-
-    // 4. FIND ALL ITEMS FOR TODAY
+    // 3. FIND ALL ITEMS FOR TODAY USING pubDate
     const todaysItems = feed.items.filter(item => {
-      const text =
-        item.title ||
-        item.itunesSummary ||
-        item.description ||
-        "";
-      const extracted = extractDate(text);
-      return extracted === todayString;
+      const pub = new Date(item.pubDate);
+      return pub.toDateString() === todayString;
     });
 
-    // 5. IF NO MATCH → RETURN EMPTY RSS
+    // 4. IF NO MATCH → RETURN EMPTY RSS
     if (todaysItems.length === 0) {
       const emptyRSS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
     <title>No Items Today</title>
-    <description>No matching SoundCloud items for ${todayString}</description>
+    <description>No USCCB items found for ${todayString}</description>
   </channel>
 </rss>`;
       res.setHeader("Content-Type", "application/xml");
       return res.status(200).send(emptyRSS);
     }
 
-    // 6. BUILD MULTIPLE <item> BLOCKS
+    // 5. BUILD MULTIPLE <item> BLOCKS
     const itemsXML = todaysItems
       .map(item => {
         return `
     <item>
-      <guid isPermaLink="false">${item.guid}</guid>
+      <guid>${item.guid}</guid>
       <title>${item.title}</title>
       <pubDate>${item.pubDate}</pubDate>
       <link>${item.link}</link>
-      <itunes:duration>${item.itunesDuration}</itunes:duration>
-      <itunes:author>${item.itunesAuthor}</itunes:author>
-      <itunes:explicit>no</itunes:explicit>
-      <itunes:summary>${item.itunesSummary}</itunes:summary>
-      <itunes:subtitle>${item.itunesSubtitle}</itunes:subtitle>
       <description><![CDATA[${item.description}]]></description>
-      <enclosure type="audio/mpeg"
-                 url="${item.enclosure.url}"
-                 length="${item.enclosure.length}"/>
-      <itunes:image href="${item.itunesImage?.href || ""}"/>
+      <enclosure url="${item.enclosure.url}" type="audio/mpeg" length="${item.enclosure.length}"/>
     </item>`;
       })
       .join("\n");
 
-    // 7. BUILD FULL RSS FEED
+    // 6. BUILD FULL RSS FEED WITH CHANNEL METADATA + TODAY'S ITEMS
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
      xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
@@ -102,27 +78,20 @@ export default async function handler(req, res) {
     <lastBuildDate>${feed.lastBuildDate}</lastBuildDate>
     <ttl>${feed.ttl}</ttl>
     <language>${feed.language}</language>
-    <copyright>${feed.copyright}</copyright>
-    <webMaster>${feed.webMaster}</webMaster>
     <description>${feed.description}</description>
-    <itunes:subtitle>${feed.itunesSubtitle}</itunes:subtitle>
-    <itunes:author>${feed.itunesAuthor}</itunes:author>
-    <itunes:explicit>no</itunes:explicit>
-    <itunes:image href="${feed.itunesImage?.href || ""}"/>
-    <itunes:category text="${feed.itunesCategory?.text || ""}"/>
 
 ${itemsXML}
 
   </channel>
 </rss>`;
 
-    // 8. RETURN XML
+    // 7. RETURN XML
     res.setHeader("Content-Type", "application/xml");
     res.status(200).send(xml);
 
   } catch (error) {
     res.status(500).json({
-      error: "Failed to fetch or process RSS feed",
+      error: "Failed to fetch or process USCCB feed",
       details: error.message
     });
   }
