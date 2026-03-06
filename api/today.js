@@ -26,17 +26,33 @@ export default async function handler(req, res) {
       "https://feeds.feedburner.com/usccb/zhqs"
     );
 
-    // 2. TODAY (UTC-normalized)
+    // 2. TODAY (formatted like "March 5, 2026")
     const today = new Date();
-    const todayString = today.toDateString();
-
-    // 3. FIND ALL ITEMS FOR TODAY USING pubDate
-    const todaysItems = feed.items.filter(item => {
-      const pub = new Date(item.pubDate);
-      return pub.toDateString() === todayString;
+    const todayString = today.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
     });
 
-    // 4. IF NO MATCH → RETURN EMPTY RSS
+    // 3. Extract date from text like:
+    // "Daily Mass Reading Podcast for March 5, 2026"
+    function extractDate(text) {
+      const match = text.match(/for ([A-Za-z]+ \d{1,2}, \d{4})/);
+      return match ? match[1] : null;
+    }
+
+    // 4. FIND ALL ITEMS FOR TODAY (using extracted date)
+    const todaysItems = feed.items.filter(item => {
+      const text =
+        item.title ||
+        item.itunesSummary ||
+        item.description ||
+        "";
+      const extracted = extractDate(text);
+      return extracted === todayString;
+    });
+
+    // 5. IF NO MATCH → RETURN EMPTY RSS
     if (todaysItems.length === 0) {
       const emptyRSS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
@@ -49,7 +65,7 @@ export default async function handler(req, res) {
       return res.status(200).send(emptyRSS);
     }
 
-    // 5. BUILD MULTIPLE <item> BLOCKS
+    // 6. BUILD MULTIPLE <item> BLOCKS
     const itemsXML = todaysItems
       .map(item => {
         return `
@@ -64,7 +80,7 @@ export default async function handler(req, res) {
       })
       .join("\n");
 
-    // 6. BUILD FULL RSS FEED WITH CHANNEL METADATA + TODAY'S ITEMS
+    // 7. BUILD FULL RSS FEED WITH CHANNEL METADATA + TODAY'S ITEMS
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
      xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
@@ -85,7 +101,7 @@ ${itemsXML}
   </channel>
 </rss>`;
 
-    // 7. RETURN XML
+    // 8. RETURN XML
     res.setHeader("Content-Type", "application/xml");
     res.status(200).send(xml);
 
