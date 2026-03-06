@@ -18,7 +18,8 @@ export default async function handler(req, res) {
           ["itunes:author", "itunesAuthor"],
           ["itunes:image", "itunesImage", { keepArray: false }],
           ["itunes:category", "itunesCategory", { keepArray: false }],
-          ["itunes:owner", "itunesOwner", { keepArray: false }]
+          ["itunes:owner", "itunesOwner", { keepArray: false }],
+          ["itunes:keywords", "itunesKeywords"]
         ]
       }
     });
@@ -92,7 +93,7 @@ export default async function handler(req, res) {
       })
       .join("\n");
 
-    // 7. BUILD FULL RSS FEED WITH CHANNEL METADATA + TODAY'S ITEMS
+    // 7. BUILD FULL RSS FEED WITH ALL CHANNEL METADATA
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
      xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
@@ -106,11 +107,31 @@ export default async function handler(req, res) {
     <lastBuildDate>${feed.lastBuildDate}</lastBuildDate>
     <ttl>${feed.ttl}</ttl>
     <language>${feed.language}</language>
+    <copyright>${feed.copyright}</copyright>
+    <webMaster>${feed.webMaster}</webMaster>
     <description>${feed.description}</description>
+
     <itunes:subtitle>${feed.itunesSubtitle || ""}</itunes:subtitle>
     <itunes:author>${feed.itunesAuthor || ""}</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
     <itunes:image href="${feed.itunesImage?.href || ""}"/>
-    <itunes:category text="${feed.itunesCategory?.text || ""}"/>
+
+    <image>
+      <url>${feed.itunesImage?.href || ""}</url>
+      <title>${feed.title}</title>
+      <link>${feed.link}</link>
+    </image>
+
+    <itunes:keywords>${feed.itunesKeywords || ""}</itunes:keywords>
+
+    <itunes:category text="${feed.itunesCategory?.text || ""}">
+      <itunes:category text="Christianity"/>
+    </itunes:category>
+
+    <itunes:owner>
+      <itunes:email>${feed.itunesOwner?.email || ""}</itunes:email>
+      <itunes:name>${feed.itunesOwner?.name || ""}</itunes:name>
+    </itunes:owner>
 
 ${itemsXML}
 
