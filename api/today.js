@@ -121,7 +121,7 @@ export default async function handler(req, res) {
     <itunes:keywords>Daily,Readings,USCCB,New,American,Bible,Catholic,Catholicism,Psalms,Catechism</itunes:keywords>
     <itunes:summary>The Daily Mass Readings based on the New American Bible and approved for use in the United States of America.</itunes:summary>
 
-    <itunes:category text="Religion & Spirituality">
+    <itunes:category text="Religion  &amp; Spirituality">
       <itunes:category text="Christianity"/>
     </itunes:category>
 
