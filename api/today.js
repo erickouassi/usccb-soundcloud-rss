@@ -12,14 +12,6 @@ export default async function handler(req, res) {
           ["itunes:image", "itunesImage", { keepArray: false }],
           ["itunes:keywords", "itunesKeywords"],
           ["author", "author"]
-        ],
-        feed: [
-          ["itunes:subtitle", "itunesSubtitle"],
-          ["itunes:author", "itunesAuthor"],
-          ["itunes:image", "itunesImage", { keepArray: false }],
-          ["itunes:category", "itunesCategory", { keepArray: false }],
-          ["itunes:owner", "itunesOwner", { keepArray: false }],
-          ["itunes:keywords", "itunesKeywords"]
         ]
       }
     });
@@ -29,7 +21,7 @@ export default async function handler(req, res) {
       "https://feeds.feedburner.com/usccb/zhqs"
     );
 
-    // 2. TODAY (formatted like "March 5, 2026")
+    // 2. TODAY (formatted like "March 30, 2026")
     const today = new Date();
     const todayString = today.toLocaleDateString("en-US", {
       year: "numeric",
@@ -38,13 +30,13 @@ export default async function handler(req, res) {
     });
 
     // 3. Extract date from text like:
-    // "Daily Mass Reading Podcast for March 5, 2026"
+    // "Daily Mass Reading Podcast for March 30, 2026"
     function extractDate(text) {
       const match = text.match(/for ([A-Za-z]+ \d{1,2}, \d{4})/);
       return match ? match[1] : null;
     }
 
-    // 4. FIND ALL ITEMS FOR TODAY (using extracted date)
+    // 4. FIND ALL ITEMS FOR TODAY
     const todaysItems = feed.items.filter(item => {
       const text =
         item.title ||
@@ -68,7 +60,7 @@ export default async function handler(req, res) {
       return res.status(200).send(emptyRSS);
     }
 
-    // 6. BUILD MULTIPLE <item> BLOCKS WITH ALL FIELDS
+    // 6. BUILD MULTIPLE <item> BLOCKS
     const itemsXML = todaysItems
       .map(item => {
         return `
@@ -93,44 +85,49 @@ export default async function handler(req, res) {
       })
       .join("\n");
 
-    // 7. BUILD FULL RSS FEED WITH ALL CHANNEL METADATA
+    // 7. BUILD FULL RSS FEED WITH YOUR CUSTOM CHANNEL HEADER
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0"
+<rss xmlns:atom="http://www.w3.org/2005/Atom"
      xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
-     xmlns:atom="http://www.w3.org/2005/Atom">
+     version="2.0">
 
   <channel>
-    <atom:link href="${feed.link}" rel="self" type="application/rss+xml"/>
-    <title>${feed.title}</title>
-    <link>${feed.link}</link>
+
+    <atom:link href="https://feeds.soundcloud.com/users/soundcloud:users:838970026/sounds.rss" rel="self" type="application/rss+xml"/>
+    <atom:link href="https://feeds.soundcloud.com/users/soundcloud:users:838970026/sounds.rss?before=1961977543" rel="next" type="application/rss+xml"/>
+
+    <title>Daily Readings from the New American Bible</title>
+    <link>https://soundcloud.com/usccb-readings</link>
     <pubDate>${feed.pubDate}</pubDate>
     <lastBuildDate>${feed.lastBuildDate}</lastBuildDate>
-    <ttl>${feed.ttl}</ttl>
-    <language>${feed.language}</language>
-    <copyright>${feed.copyright}</copyright>
-    <webMaster>${feed.webMaster}</webMaster>
-    <description>${feed.description}</description>
+    <ttl>60</ttl>
+    <language>en</language>
+    <copyright>(c) New American Bible. All Rights Reserved.</copyright>
+    <webMaster>feeds@soundcloud.com (SoundCloud Feeds)</webMaster>
+    <description>Readings from the official New American Bible and Vatican approved for use in U.S. Catholic parishes.</description>
 
-    <itunes:subtitle>${feed.itunesSubtitle || ""}</itunes:subtitle>
-    <itunes:author>${feed.itunesAuthor || ""}</itunes:author>
+    <itunes:subtitle>The Daily Mass Readings based on the New American Bible and approved for use in the United States of America.</itunes:subtitle>
+    <itunes:author>Catholic Communication Campaign</itunes:author>
     <itunes:explicit>no</itunes:explicit>
-    <itunes:image href="${feed.itunesImage?.href || ""}"/>
+
+    <itunes:image href="http://ccc.usccb.org/cccradio/NABPodcasts/nablogo.jpg"/>
 
     <image>
-      <url>${feed.itunesImage?.href || ""}</url>
-      <title>${feed.title}</title>
-      <link>${feed.link}</link>
+      <url>https://i1.sndcdn.com/avatars-F7uWi4zgj3w8cbsb-xZlEUg-original.jpg</url>
+      <title>USCCB Daily Readings</title>
+      <link>https://soundcloud.com/usccb-readings</link>
     </image>
 
-    <itunes:keywords>${feed.itunesKeywords || ""}</itunes:keywords>
+    <itunes:keywords>Daily,Readings,USCCB,New,American,Bible,Catholic,Catholicism,Psalms,Catechism</itunes:keywords>
+    <itunes:summary>The Daily Mass Readings based on the New American Bible and approved for use in the United States of America.</itunes:summary>
 
-    <itunes:category text="${feed.itunesCategory?.text || ""}">
+    <itunes:category text="Religion & Spirituality">
       <itunes:category text="Christianity"/>
     </itunes:category>
 
     <itunes:owner>
-      <itunes:email>${feed.itunesOwner?.email || ""}</itunes:email>
-      <itunes:name>${feed.itunesOwner?.name || ""}</itunes:name>
+      <itunes:email>nab@usccb.org</itunes:email>
+      <itunes:name>Catholic Communication Campaign</itunes:name>
     </itunes:owner>
 
 ${itemsXML}
