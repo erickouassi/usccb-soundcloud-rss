@@ -9,7 +9,9 @@ export default async function handler(req, res) {
           ["itunes:subtitle", "itunesSubtitle"],
           ["itunes:author", "itunesAuthor"],
           ["itunes:duration", "itunesDuration"],
-          ["itunes:image", "itunesImage", { keepArray: false }]
+          ["itunes:image", "itunesImage", { keepArray: false }],
+          ["itunes:keywords", "itunesKeywords"],
+          ["author", "author"]
         ],
         feed: [
           ["itunes:subtitle", "itunesSubtitle"],
@@ -65,17 +67,27 @@ export default async function handler(req, res) {
       return res.status(200).send(emptyRSS);
     }
 
-    // 6. BUILD MULTIPLE <item> BLOCKS
+    // 6. BUILD MULTIPLE <item> BLOCKS WITH ALL FIELDS
     const itemsXML = todaysItems
       .map(item => {
         return `
     <item>
-      <guid>${item.guid}</guid>
+      <guid isPermaLink="false">${item.guid}</guid>
       <title>${item.title}</title>
       <pubDate>${item.pubDate}</pubDate>
       <link>${item.link}</link>
-      <description><![CDATA[${item.description}]]></description>
-      <enclosure url="${item.enclosure.url}" type="audio/mpeg" length="${item.enclosure.length}"/>
+      <itunes:duration>${item.itunesDuration || ""}</itunes:duration>
+      <itunes:author>${item.itunesAuthor || ""}</itunes:author>
+      <itunes:explicit>no</itunes:explicit>
+      <itunes:summary>${item.itunesSummary || ""}</itunes:summary>
+      <itunes:subtitle>${item.itunesSubtitle || ""}</itunes:subtitle>
+      <description><![CDATA[${item.description || ""}]]></description>
+      <enclosure type="audio/mpeg"
+                 url="${item.enclosure?.url || ""}"
+                 length="${item.enclosure?.length || ""}"/>
+      <itunes:image href="${item.itunesImage?.href || ""}"/>
+      <author>${item.author || ""}</author>
+      <itunes:keywords>${item.itunesKeywords || ""}</itunes:keywords>
     </item>`;
       })
       .join("\n");
@@ -95,6 +107,10 @@ export default async function handler(req, res) {
     <ttl>${feed.ttl}</ttl>
     <language>${feed.language}</language>
     <description>${feed.description}</description>
+    <itunes:subtitle>${feed.itunesSubtitle || ""}</itunes:subtitle>
+    <itunes:author>${feed.itunesAuthor || ""}</itunes:author>
+    <itunes:image href="${feed.itunesImage?.href || ""}"/>
+    <itunes:category text="${feed.itunesCategory?.text || ""}"/>
 
 ${itemsXML}
 
