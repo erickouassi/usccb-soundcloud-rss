@@ -2,27 +2,57 @@ import Parser from "rss-parser";
 
 export default async function handler(req, res) {
   try {
-    // 1. FETCH XML → PARSE TO JSON
-    const parser = new Parser();
+    const parser = new Parser({
+      customFields: {
+        item: [
+          ["itunes:summary", "itunesSummary"],
+          ["itunes:subtitle", "itunesSubtitle"],
+          ["itunes:author", "itunesAuthor"],
+          ["itunes:duration", "itunesDuration"],
+          ["itunes:image", "itunesImage", { keepArray: false }]
+        ]
+      }
+    });
+
     const feed = await parser.parseURL(
       "https://feeds.soundcloud.com/users/soundcloud:users:838970026/sounds.rss"
     );
 
-    // 2. FILTER ONLY TODAY'S ITEM
-    const today = new Date().toDateString();
+    // TODAY (local server date)
+    const today = new Date();
+    const todayString = today.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    }); 
+    // Example: "March 5, 2026"
 
+    // FUNCTION: Extract date from text like:
+    // "Daily Mass Reading Podcast for March 5, 2026"
+    function extractDate(text) {
+      const match = text.match(/for ([A-Za-z]+ \d{1,2}, \d{4})/);
+      return match ? match[1] : null;
+    }
+
+    // FIND TODAY'S ITEM BY MATCHING THE DATE INSIDE THE TEXT
     const todaysItem = feed.items.find(item => {
-      const pub = new Date(item.pubDate);
-      return pub.toDateString() === today;
+      const text =
+        item.title ||
+        item.itunesSummary ||
+        item.description ||
+        "";
+
+      const extracted = extractDate(text);
+      return extracted === todayString;
     });
 
-    // 3. IF NO ITEM TODAY → RETURN EMPTY RSS FEED
+    // IF NO MATCH → RETURN EMPTY RSS
     if (!todaysItem) {
       const emptyRSS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
     <title>No Item Today</title>
-    <description>No SoundCloud item was published today.</description>
+    <description>No matching SoundCloud item for ${todayString}</description>
   </channel>
 </rss>`;
 
@@ -30,27 +60,32 @@ export default async function handler(req, res) {
       return res.status(200).send(emptyRSS);
     }
 
-    // 4. CONVERT JSON BACK TO MINIMAL RSS XML
+    // BUILD MINIMAL RSS WITH TODAY'S ITEM
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
   <channel>
     <title>SoundCloud Daily Feed</title>
     <link>https://soundcloud.com</link>
     <description>Only today's SoundCloud item</description>
 
     <item>
+      <guid isPermaLink="false">${todaysItem.guid}</guid>
       <title>${todaysItem.title}</title>
-      <link>${todaysItem.link}</link>
       <pubDate>${todaysItem.pubDate}</pubDate>
-      <description><![CDATA[${todaysItem.description || ""}]]></description>
-      <enclosure url="${todaysItem.enclosure?.url || ""}" type="audio/mpeg" />
-      <guid>${todaysItem.guid}</guid>
+      <link>${todaysItem.link}</link>
+      <itunes:duration>${todaysItem.itunesDuration}</itunes:duration>
+      <itunes:author>${todaysItem.itunesAuthor}</itunes:author>
+      <itunes:explicit>no</itunes:explicit>
+      <itunes:summary>${todaysItem.itunesSummary}</itunes:summary>
+      <itunes:subtitle>${todaysItem.itunesSubtitle}</itunes:subtitle>
+      <description><![CDATA[${todaysItem.description}]]></description>
+      <enclosure type="audio/mpeg" url="${todaysItem.enclosure.url}" length="${todaysItem.enclosure.length}"/>
+      <itunes:image href="${todaysItem.itunesImage?.href || ""}"/>
     </item>
 
   </channel>
 </rss>`;
 
-    // 5. RETURN RSS XML
     res.setHeader("Content-Type", "application/xml");
     res.status(200).send(xml);
 
