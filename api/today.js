@@ -21,17 +21,25 @@ export default async function handler(req, res) {
       "https://feeds.feedburner.com/usccb/zhqs"
     );
 
-    // 2. TODAY based on browser timezone
-    const tz = req.query.tz || "UTC";
+// 2. TODAY based on browser timezone
+const tz = req.query.tz || "UTC";
 
-    const now = new Date();
+const now = new Date();
 
-    const todayString = now.toLocaleDateString("en-US", {
-      timeZone: tz,
-      year: "numeric",
-      month: "long",
-      day: "numeric"
-    });
+const todayString = now.toLocaleDateString("en-US", {
+  timeZone: tz,
+  year: "numeric",
+  month: "long",
+  day: "numeric"
+});
+
+// DEBUG LOGS
+console.log("---- USCCB FEED DATE DEBUG ----");
+console.log("Server UTC now:", new Date().toUTCString());
+console.log("Browser timezone:", tz);
+console.log("Local-time computed date:", todayString);
+console.log("--------------------------------");
+
 
     // 3. Extract date from text like:
     // "Daily Mass Reading Podcast for March 30, 2026"
