@@ -21,9 +21,13 @@ export default async function handler(req, res) {
       "https://feeds.feedburner.com/usccb/zhqs"
     );
 
-    // 2. TODAY (formatted like "March 30, 2026")
-    const today = new Date();
-    const todayString = today.toLocaleDateString("en-US", {
+    // 2. TODAY based on browser timezone
+    const tz = req.query.tz || "UTC";
+
+    const now = new Date();
+
+    const todayString = now.toLocaleDateString("en-US", {
+      timeZone: tz,
       year: "numeric",
       month: "long",
       day: "numeric"
